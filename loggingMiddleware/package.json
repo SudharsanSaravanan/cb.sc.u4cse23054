@@ -1,0 +1,11 @@
+{
+  "name": "loggingmiddleware",
+  "version": "1.0.0",
+  "description": "Shared logging middleware for backend and frontend",
+  "main": "logger.cjs",
+  "module": "index.js",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
