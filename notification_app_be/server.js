@@ -264,6 +264,5 @@ app.get("/health", (req, res) => {
 
 http.listen(5000, () => {
   Log("backend", "info", "server", "Server initialized on port 5000");
-  console.log("✓ Server running on port 5000");
-  console.log("✓ WebSocket ready at ws://localhost:5000");
+  console.log("Server running on port 5000...");
 });
