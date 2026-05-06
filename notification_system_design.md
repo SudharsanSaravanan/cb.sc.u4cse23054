@@ -542,3 +542,101 @@ FROM notifications
 WHERE created_at > NOW() - INTERVAL '7 days'
 GROUP BY type_id;
 ```
+
+---
+
+## Stage 3: Query Optimization & Indexing
+
+### Query Analysis
+The query:
+```sql
+SELECT * FROM notifications WHERE studentID = 1042 AND isRead = false ORDER BY createdAt ASC;
+```
+
+**Why it's slow:**
+- Full table scan on 5M rows
+- No indexes to filter quickly
+- Composite filtering (studentID + isRead) without index
+
+**Solution - Composite Indexing:**
+```sql
+CREATE INDEX idx_student_unread ON notifications(studentID, isRead) WHERE isRead = false;
+CREATE INDEX idx_student_created ON notifications(studentID, createdAt DESC);
+```
+
+**Why not add indexes on every column?**
+- Massive storage overhead
+- Write performance penalty (every INSERT updates all indexes)
+- Index maintenance cost increases
+
+**Optimized query:**
+```sql
+SELECT id, title, message, createdAt FROM notifications 
+WHERE studentID = 1042 AND isRead = false 
+ORDER BY createdAt ASC 
+LIMIT 20;
+```
+
+**Find placement notifications in last 7 days:**
+```sql
+SELECT * FROM notifications 
+WHERE notificationType = 'Placement' 
+AND createdAt >= NOW() - INTERVAL '7 days'
+ORDER BY createdAt DESC;
+
+CREATE INDEX idx_type_created ON notifications(notificationType, createdAt DESC);
+```
+
+**Expected improvement:** Full scan (O(n)) → Index scan (O(log n)) = 1000x faster with proper indexes.
+
+---
+
+## Stage 4: High-Load Performance Strategy
+
+### Problem
+50K students × 5M notifications = DB bottleneck on every page load.
+
+### Solutions & Tradeoffs
+
+**1. Redis Caching**
+```
+CACHE KEY: notifications:student:1042:page:1
+TTL: 5 minutes
+```
+- ✓ Instant response (cache hit)
+- ✗ Stale data possible
+- ✗ Cache invalidation complexity
+- Cost: Memory overhead, Redis infrastructure
+
+**2. Lazy Loading (Pagination)**
+- ✓ Already in API design (page, limit)
+- ✓ Reduces per-request data
+- ✗ Multiple DB calls for scrolling
+- Cost: Network requests increase
+
+**3. WebSocket Real-Time Push**
+- ✓ No polling/refresh needed
+- ✓ Instant updates
+- ✗ Connection management overhead
+- Cost: Server memory for connections
+
+**4. Background Batch Jobs**
+```sql
+CREATE TABLE notification_cache AS
+SELECT studentID, COUNT(*) as unread_count
+FROM notifications
+WHERE isRead = false
+GROUP BY studentID;
+```
+- ✓ Cron job every 5 minutes
+- ✗ Eventual consistency
+- Cost: Additional job scheduler
+
+### Recommended Stack
+1. Composite indexes (Stage 3)
+2. Redis cache (5-min TTL) for unread counts
+3. Pagination (already in API)
+4. WebSocket for real-time updates
+5. Background job for hot data
+
+**Result:** ~1 sec → ~10ms response time
