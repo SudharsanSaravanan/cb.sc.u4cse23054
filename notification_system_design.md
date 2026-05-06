@@ -886,7 +886,7 @@ export function PriorityInbox() {
   }, []);
 
   const typeColor = { placement: "bg-purple-100", result: "bg-blue-100", event: "bg-gray-100" };
-  const typeLabel = { placement: "🎯 Placement", result: "📊 Result", event: "📅 Event" };
+  const typeLabel = { placement: "Placement", result: "Result", event: "Event" };
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
